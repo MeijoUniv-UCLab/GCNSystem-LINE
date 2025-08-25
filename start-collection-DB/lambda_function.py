@@ -36,6 +36,20 @@ def lambda_handler(event, context):
     logger.info(event)
 
     try:
+        # eventがJSON文字列の場合を考慮
+        if isinstance(event, str):
+            event = json.loads(event)
+        elif hasattr(event, 'get'):
+            pass
+        else:
+            raise ValueError("Invalid event format")
+
+        # DistrictCodeとRegionを取得
+        district_code = event.get('DistrictCode')
+        region = event.get('Region')
+        if not district_code or not region:
+            raise ValueError("DistrictCode or Region is required")
+        
         client = MongoClient(MONGO_URI,connectTimeoutMS=30000,socketTimeoutMS=45000,serverSelectionTimeoutMS=30000)
         db = client[MONGO_DB_NAME]
         collection1 = db[MONGO_COLLECTION_NAME1]
@@ -44,45 +58,58 @@ def lambda_handler(event, context):
         print('ok')
         
 
-        document = collection1.find({'DistrictCode': event})
+        # document = collection1.find({'DistrictCode': event})
+        document = collection1.find({'DistrictCode': district_code, 'Region': region})
         #for document in documents:
         #    print(document)
         data = list(document)
+        logger.info(f"collection1 data: {data}")
         print(data)
 
-        status = data[0]["Status"]
-        district_code = data[0]["DistrictCode"]
+        if not data:
+            logger.info("No document found with DistrictCode and Region")
+            return []        
+
+        # status = data[0]["Status"]
+        # district_code = data[0]["DistrictCode"]
+        document = data[0]
+        status = document["Status"]
+        district_code = document["DistrictCode"]
         print(status)
         print(district_code)
 
         #通知ステータス変更
         if status == "unnotified":
             print("未通知")
-            collection1.update_one({'DistrictCode': district_code}, {'$set': {'Status': 'notified'}})
+            collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified'}})
 
 
         else:
             print("通知済み")
-            return 0
+            # collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'unnotified'}})
+            return []
 
         print("継続")
 
         #地区コード検索
-        query = {"properties.DistrictCode":district_code}
-        ledger_results = collection2.find(query, {"properties.LedgerNo": 1, "_id": 0})
+        query = {"properties.DistrictCode":district_code,
+                 "properties.Region": region}
+        point_results = collection2.find(query, {"properties.PointId": 1, "_id": 0})
         #for result in results:
         #    print(result)
 
-        ledger_numbers = [result['properties']['LedgerNo'] for result in ledger_results]
-        logger.info(ledger_numbers)
+        point_numbers = [result['properties']['PointId'] for result in point_results]
+        logger.info(point_numbers)
+        logger.info(f"point_numbers: {point_numbers}")
 
 
         #ユーザーID検索
-        query2 = {"GarbageCollectionPointId": {"$in": ledger_numbers}}
+        query2 = {"GarbageCollectionPointId": {"$in": point_numbers}}
         line_user_results = collection3.find(query2, {"LineUserId": 1, "_id": 0})
 
         user_ids = [result['LineUserId'] for result in line_user_results]
         logger.info(user_ids)
+        logger.info(f"user_ids: {user_ids}")
 
         return user_ids
 
