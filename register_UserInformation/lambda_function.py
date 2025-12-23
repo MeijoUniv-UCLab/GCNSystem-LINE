@@ -1,4 +1,4 @@
-#mongodb
+# mongodb
 import json
 import configparser
 from pymongo import MongoClient
@@ -16,7 +16,7 @@ config = configparser.ConfigParser()
 config.read(CONFIG_PATH + '/config.ini')
 
 
-#mongodb
+# mongodb
 config = configparser.ConfigParser()
 config.read('config.ini')
 print('configファイルを読み取りました')
@@ -25,13 +25,13 @@ print('configファイルを読み取りました')
 MONGO_URI = config["MongoDB"]['url']
 # MONGO_URI
 MONGO_DB_NAME = config['MongoDB']['db_name']
-#mongodb-gcp.json
+# mongodb-gcp.json
 MONGO_COLLECTION_NAME = config['MongoDB']['collection']
 
 
 
 def lambda_handler(event, context):
-    #引き取った情報の整形
+    # 引き取った情報の整形
     logger.info(event)
     LineUserId = event["LineUserId"]
     GarbageCollectionPointId = event["GarbageCollectionPointId"]
@@ -44,8 +44,16 @@ def lambda_handler(event, context):
         collection = db[MONGO_COLLECTION_NAME]
         print('ok')
 
-        #データ挿入
-        collection.insert_one({'LineUserId': LineUserId,'GarbageCollectionPointId': GarbageCollectionPointId})
+        # MongoDBのUserInformationコレクションに追加（初回登録の場合は新規追加）
+        query = {
+            'LineUserId': LineUserId
+        }
+        options = {
+            '$set': {
+                'GarbageCollectionPointId': GarbageCollectionPointId
+            }
+        }
+        collection.update_one(query, options, upsert=True)
         
         documents = collection.find()
         for document in documents:
@@ -61,5 +69,3 @@ def lambda_handler(event, context):
     finally:
         # MongoDB接続を閉じる
         client.close()
-
-

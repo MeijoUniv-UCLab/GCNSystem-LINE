@@ -3,6 +3,7 @@ import logging
 import configparser
 import json
 import boto3
+import base64
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -38,12 +39,13 @@ def collected_message(user_id):
   text_msg = '回収が完了いたしました。'
   messages = TextSendMessage(text = text_msg)
   LINE_BOT_API.push_message(user_id, messages=messages)
+  print("ok")
 
 
 def lambda_handler(event, context):
     
-    
-  #body = event['body']
+   
+  # body = event['body']
   logger.info(event)
   '''
   data = json.loads(event)
@@ -53,11 +55,41 @@ def lambda_handler(event, context):
   payload = json.dumps(ledger_no)
   logger.info(payload)
   '''
-  LedgerNo = event['query']["properties"]["LedgerNo"]
-  print(LedgerNo)
-  payload = json.dumps(LedgerNo)
-  logger.info(payload)
+  # LedgerNo = event['query']["properties"]["LedgerNo"]
+  # LedgerNo = event['LedgerNo']
+  # print(LedgerNo)
+  # payload = json.dumps(LedgerNo)
+  # logger.info(payload)
+  # print(payload)
+
+
+# Node-REDから送信されたmsg.payloadをlambda側で処理できるように整える
+  try:
+      # body(bodyにはBase64エンコードされた文字列が入っている)を取得する
+      body = event.get('body')
+      print("Raw body:", body)
+      if not body:
+          logger.error("No body in event.")
+          return {"statusCode": 400, "body": "No PointID provided."}
         
+      # Base64デコード
+      try:
+          decoded_bytes = base64.b64decode(body)
+          PointID = decoded_bytes.decode('utf-8')
+          PointID = int(PointID)
+      except Exception as e:
+          logger.error(f"Base64 decode error: {e}", exc_info=True)
+          return {"statusCode": 400, "body": "Invalid Base64 string."}
+        
+      # JSON文字列への変換とデバッグ
+      print("Decoded PointID:", PointID)
+      payload = json.dumps(PointID)
+      logger.info(payload)
+      print(payload)
+  except Exception as e:
+      logger.error(f"Error extracting PointID: {e}", exc_info=True)
+      return {"statusCode": 500, "body": "Internal Server Error"}
+
   
   # Lambda関数の呼び出し
   response = boto3.client('lambda').invoke(
