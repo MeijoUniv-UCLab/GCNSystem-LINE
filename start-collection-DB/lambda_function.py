@@ -6,6 +6,7 @@ from bson import json_util
 import os
 import logging
 import boto3
+import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -47,6 +48,10 @@ def lambda_handler(event, context):
         # DistrictCodeとRegionを取得
         district_code = event.get('DistrictCode')
         region = event.get('Region')
+        geofencelocation = event.get('GeofenceLocation')
+        garbagetruckid = event.get('GarbageTruckId')
+        sendcount = event.get('SendCount')
+        print(sendcount)
         if not district_code or not region:
             raise ValueError("DistrictCode or Region is required")
         
@@ -78,10 +83,16 @@ def lambda_handler(event, context):
         print(status)
         print(district_code)
 
+        if sendcount == 1:
+            d_today = datetime.date.today()
+            t_now = datetime.datetime.now().time()
+            collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified', 'Date': d_today, 'StartTime': t_now, 'GeofenceLocation': geofencelocation, 'GarbageTruckId': garbagetruckid}})
+            return []
+
         #通知ステータス変更
         if status == "unnotified":
             print("未通知")
-            collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified'}})
+            # collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified'}})
 
 
         else:

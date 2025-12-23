@@ -76,8 +76,14 @@ def lambda_handler(event, context):
   payload = json.loads(event['body'])
   district_code = payload.get('DistrictCode')
   region = payload.get('Region')
+  geofencelocation = payload.get('GeofenceLocation')
+  garbagetruckid = payload.get('GarbageTruckId')
   logger.info(district_code)
   logger.info(region)
+  logger.info(geofencelocation)
+  logger.info(garbagetruckid)
+
+  sendcount = 0
 
   # Lambda関数の呼び出し
   response = boto3.client('lambda').invoke(
@@ -85,7 +91,10 @@ def lambda_handler(event, context):
     InvocationType='RequestResponse',
     Payload=json.dumps({
       "DistrictCode": district_code,
-      "Region": region
+      "Region": region,
+      "GeofenceLocation": geofencelocation,
+      "GarbageTruckId": garbagetruckid,
+      "SendCount": sendcount
     })
   )
   print(response)
@@ -107,6 +116,21 @@ def lambda_handler(event, context):
     if user_id:  # user_idが空でない場合のみ送信
       logger.info(f"Sending message to: {user_id}")
       send_message(user_id)
+
+  sendcount = 1
+
+  response = boto3.client('lambda').invoke(
+    FunctionName = FUNCTION_NAME,
+    InvocationType='RequestResponse',
+    Payload=json.dumps({
+      "DistrictCode": district_code,
+      "Region": region,
+      "GeofenceLocation": geofencelocation,
+      "GarbageTruckId": garbagetruckid,
+      "SendCount": sendcount
+    })
+  )
+  print(response)
 
   return {"statusCode": 200, "body": "Messages sent successfully."}
 
