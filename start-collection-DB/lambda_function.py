@@ -6,7 +6,8 @@ from bson import json_util
 import os
 import logging
 import boto3
-import datetime
+from datetime import date, datetime
+from dateutil import tz
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -52,6 +53,8 @@ def lambda_handler(event, context):
         garbagetruckid = event.get('GarbageTruckId')
         sendcount = event.get('SendCount')
         print(sendcount)
+        print(geofencelocation)
+        print(garbagetruckid)
         if not district_code or not region:
             raise ValueError("DistrictCode or Region is required")
         
@@ -83,22 +86,28 @@ def lambda_handler(event, context):
         print(status)
         print(district_code)
 
-        if sendcount == 1:
-            d_today = datetime.date.today()
-            t_now = datetime.datetime.now().time()
-            collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified', 'Date': d_today, 'StartTime': t_now, 'GeofenceLocation': geofencelocation, 'GarbageTruckId': garbagetruckid}})
-            return []
+        d_today = date.today()
+        s_today = d_today.isoformat()
+        jst_time = tz.gettz('Asia/Tokyo')
+        t_now = datetime.now(jst_time).time().replace(microsecond=0)
+        s_now = t_now.isoformat()
+
 
         #通知ステータス変更
         if status == "unnotified":
             print("未通知")
-            # collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified'}})
-
 
         else:
             print("通知済み")
-            # collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'unnotified'}})
+            # collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'unnotified', 'Date': s_today, 'StartTime': s_now, 'GeofenceLocation': geofencelocation, 'GarbageTruckId': garbagetruckid}})
             return []
+
+        
+        if sendcount == 1:
+            collection1.update_one({'DistrictCode': district_code, 'Region': region}, {'$set': {'Status': 'notified', 'Date': s_today, 'StartTime': s_now, 'GeofenceLocation': geofencelocation, 'GarbageTruckId': garbagetruckid}})
+            print("更新完了")
+            return []
+
 
         print("継続")
 
