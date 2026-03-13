@@ -30,7 +30,7 @@ logger.info(FUNCTION_NAME)
 
 
 def send_message(user_id):
-  text_msg = 'あなたの地域でゴミ回収が開始されました。 '
+  text_msg = 'あなたの地域でゴミ回収が開始されました。'
   messages = TextSendMessage(text = text_msg)
   # for user in user_ids:
   #   LINE_BOT_API.push_message(user, messages=messages)
